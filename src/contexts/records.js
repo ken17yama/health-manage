@@ -2,8 +2,7 @@ import React, {
 	createContext,
 	useContext,
 	useState,
-	useMemo,
-	useCallback,
+	useEffect,
 } from 'react'
 import { AuthContext } from './auth'
 import { db } from '../utils/firebase'
@@ -14,22 +13,26 @@ const RecordsProvider = ({ children }) => {
 	const [records, setRecords] = useState([])
 	const { currentUser } = useContext(AuthContext)
 
-	const collection = useMemo(() => {
-		const col = db.collection('records')
+	const col = db.collection('records')
 
-		// 更新イベント監視
-		col.where('uid', '==', currentUser.uid).onSnapshot(query => {
+	console.log(col)
+
+	useEffect(() => {
+
+		col.where('uid', '==', currentUser.uid).onSnapshot(docs => {
 			const data = []
-			query.forEach(d => data.push({ ...d.data(), docId: d.id }))
+			docs.forEach(doc => data.push({ ...doc.data(), docId: doc.id }))
 			setRecords(data)
 		})
+
+		console.log('abc')
 
 		return col
 	}, [])
 
-	const add = useCallback(async input => {
+	const add = (async input => {
 		try {
-			await collection.add({
+			await col.add({
 				uid: currentUser.uid,
 				record_at: new Date(input.record_at),
 				weight: input.weight,
@@ -45,38 +48,42 @@ const RecordsProvider = ({ children }) => {
 		} catch (e) {
 			console.log(e)
 		}
-	}, [])
+	})
 
-	const update = useCallback(
-		async ({ docId, weight, fat }) => {
-			const updateTo = {
-				...records.find(t => t.docId === docId),
-				weight,
-				fat,
-				recordAt: new Date(),
-			}
-			try {
-				await collection.doc(docId).set(updateTo)
-			} catch (e) {
-				console.log(e)
-			}
-		},
-		[records]
-	)
+	// const update = useEffect(
+	// 	async ({ docId, weight, fat }) => {
+	// 		const updateTo = {
+	// 			...records.find(t => t.docId === docId),
+	// 			weight,
+	// 			fat,
+	// 			recordAt: new Date(),
+	// 		}
+	// 		try {
+	// 			await collection.doc(docId).set(updateTo)
+	// 		} catch (e) {
+	// 			console.log(e)
+	// 		}
+	// 	},
+	// 	[records]
+	// )
 
-	const remove = useCallback(
+	const remove = (
 		async ({ docId }) => {
 			try {
-				await collection.doc(docId).delete()
+				await col.doc(docId).delete()
 			} catch (e) {
 				console.log(e)
 			}
-		},
-		[records]
+		}
 	)
 
 	return (
-		<RecordsContext.Provider value={{ records, add, update, remove }}>
+		<RecordsContext.Provider value={{
+			records,
+			add,
+			// update,
+			remove
+		}}>
 			{children}
 		</RecordsContext.Provider>
 	)
